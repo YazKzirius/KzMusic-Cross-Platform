@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-
+import 'package:kzmusic_cross_platform/services/SpotifyAuthService.dart';
+import 'package:kzmusic_cross_platform/LandingPage.dart';
 
 
 class GetStartedScreen extends StatefulWidget {
@@ -11,23 +12,23 @@ class GetStartedScreen extends StatefulWidget {
 
 class _GetStartedScreenState extends State<GetStartedScreen> {
   bool _isLoading = false;
-
-  void _handleGetStarted() {
-    // When the button is pressed, show the loading spinner
+  final SpotifyAuthService _authService = SpotifyAuthService();
+  void _handleGetStarted() async {
     setState(() {
       _isLoading = true;
     });
 
-    // Simulate a network request or some background work
-    Future.delayed(const Duration(seconds: 3), () {
-      // After the work is done, you might navigate to the next screen.
-      // For this example, we'll just hide the spinner.
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    });
+    // This will open the browser for the user to log in.
+    // The redirect will be handled when the app comes back into focus.
+    await _authService.authenticate();
+
+    // We don't need to handle success/failure here, as the redirect
+    // will trigger a full app reload on the web.
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -76,7 +77,13 @@ class _GetStartedScreenState extends State<GetStartedScreen> {
                   width: double.infinity, // Equivalent to layout_width="0dp" with constraints
                   height: 56.0,
                   child: ElevatedButton(
-                    onPressed: _isLoading ? null : _handleGetStarted,
+                    onPressed: _isLoading ? null : () {
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const LandingPage())
+                      );
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Color(0xFF222222), // Equivalent to backgroundTint="@color/purple"
                       foregroundColor: Colors.white,   // Equivalent to textColor="@android:color/white"
