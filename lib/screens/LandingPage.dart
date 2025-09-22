@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:kzmusic_cross_platform/services/SpotifyAuthService.dart';
+import 'package:kzmusic_cross_platform/screens/DashboardScreen.dart';
 
 // Placeholder screens for the navigation items
-class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({super.key});
+class Dashboard extends StatelessWidget {
+  const Dashboard({super.key});
   @override
-  Widget build(BuildContext context) => const Center(child: Text('Dashboard'));
+  Widget build(BuildContext context) => const DashboardScreen();
 }
 
 class SearchScreen extends StatelessWidget {
@@ -75,9 +76,18 @@ class _LandingPageState extends State<LandingPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _pages,
+      backgroundColor: const Color(0xFF0A0A0A),
+      body: Column(
+        children: [
+          Expanded(
+            child: IndexedStack(
+              index: _selectedIndex,
+              children: _pages,
+            ),
+          ),
+
+          const PlaybackBar(),
+        ],
       ),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
@@ -88,10 +98,67 @@ class _LandingPageState extends State<LandingPage> {
           BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
         ],
         currentIndex: _selectedIndex,
-        selectedItemColor: Colors.purple,
-        unselectedItemColor: Colors.grey,
+        selectedItemColor: Color(0xFF6200EE),
+        unselectedItemColor: Colors.black,
         onTap: _onItemTapped,
         showUnselectedLabels: true,
+      ),
+    );
+  }
+}
+class PlaybackBar extends StatelessWidget {
+  const PlaybackBar({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 70,
+      color: const Color(0xFF111111), // Dark background
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: Image.asset(
+              'assets/ic_library.png',
+              width: 52,
+              height: 52,
+              fit: BoxFit.cover,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Untitled',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  'Unknown Artist',
+                  style: const TextStyle(
+                    color: Color(0xFFCCCCCC),
+                    fontSize: 14,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.keyboard_arrow_up, color: Colors.white),
+            onPressed: () => print('Playback bar tapped'),
+          ),
+        ],
       ),
     );
   }

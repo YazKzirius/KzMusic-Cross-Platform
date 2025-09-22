@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:kzmusic_cross_platform/GetStartedScreen.dart';
-import 'package:kzmusic_cross_platform/LandingPage.dart';
+import 'package:kzmusic_cross_platform/screens/GetStartedScreen.dart';
+import 'package:kzmusic_cross_platform/screens/LandingPage.dart';
 import 'package:app_links/app_links.dart';
 import 'dart:async';
 import 'package:kzmusic_cross_platform/services/SpotifyAuthService.dart';

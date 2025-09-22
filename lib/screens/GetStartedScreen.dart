@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kzmusic_cross_platform/services/SpotifyAuthService.dart';
-import 'package:kzmusic_cross_platform/LandingPage.dart';
+import 'package:kzmusic_cross_platform/screens/LandingPage.dart';
 
 
 class GetStartedScreen extends StatefulWidget {
