@@ -92,11 +92,8 @@ class SettingsScreen extends StatelessWidget {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  // This is where you would call your auth service to sign out.
-                  SpotifyAuthService().signOut();
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => GetStartedScreen()));
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Signed out. Please restart the app.')),
+                    const SnackBar(content: Text('Sign out pressed')),
                   );
                 },
                 style: ElevatedButton.styleFrom(
