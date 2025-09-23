@@ -15,18 +15,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         // Main scrollable content
         SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            padding: const EdgeInsets.symmetric(horizontal: 20.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const SizedBox(height: 60), // Space from top
-                // App Logo
-                Image.asset(
-                  'assets/AppLogo.png', // TODO: Add your logo to assets
-                  width: 120,
-                  height: 120,
-                ),
-                const SizedBox(height: 20), // Added vertical spacing
                 _DashboardItem(
                   iconPath: 'assets/ic_radio.png', // TODO: Add icon to assets
                   label: 'Your Radio',

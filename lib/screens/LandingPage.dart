@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:kzmusic_cross_platform/services/SpotifyAuthService.dart';
 import 'package:kzmusic_cross_platform/screens/DashboardScreen.dart';
+import 'package:kzmusic_cross_platform/screens/SearchScreen.dart';
+import 'package:kzmusic_cross_platform/screens/LibraryScreen.dart';
+import 'package:kzmusic_cross_platform/screens/AccountSettingsScreen.dart';
 
 // Placeholder screens for the navigation items
 class Dashboard extends StatelessWidget {
@@ -9,43 +12,30 @@ class Dashboard extends StatelessWidget {
   Widget build(BuildContext context) => const DashboardScreen();
 }
 
-class SearchScreen extends StatelessWidget {
-  const SearchScreen({super.key});
+class Search extends StatelessWidget {
+  const Search({super.key});
   @override
-  Widget build(BuildContext context) => const Center(child: Text('Search'));
+  Widget build(BuildContext context) => const SearchScreen();
 }
 
-class GenAIScreen extends StatelessWidget {
-  const GenAIScreen({super.key});
+class GenAI extends StatelessWidget {
+  const GenAI({super.key});
   @override
   Widget build(BuildContext context) => const Center(child: Text('GenAI'));
 }
 
-class LibraryScreen extends StatelessWidget {
-  const LibraryScreen({super.key});
+class Library extends StatelessWidget {
+  const Library({super.key});
   @override
-  Widget build(BuildContext context) => const Center(child: Text('Library'));
+  Widget build(BuildContext context) => const LibraryScreen();
 }
 
 // Settings screen with a sign-out button
-class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
+class Settings extends StatelessWidget {
+  const Settings({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: ElevatedButton(
-        onPressed: () {
-          // Note: This is a simplified sign-out. In a real app, you'd use a
-          // state management solution to notify the app of the state change.
-          // For this prototype, we'll just call the service.
-          SpotifyAuthService().signOut();
-          print("User signed out. Please restart the app to see the login screen.");
-        },
-        child: const Text('Sign Out'),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => const SettingsScreen();
 }
 
 
@@ -60,11 +50,11 @@ class _LandingPageState extends State<LandingPage> {
   int _selectedIndex = 0;
 
   static const List<Widget> _pages = <Widget>[
-    DashboardScreen(),
-    SearchScreen(),
-    GenAIScreen(),
-    LibraryScreen(),
-    SettingsScreen(),
+    Dashboard(),
+    Search(),
+    GenAI(),
+    Library(),
+    Settings(),
   ];
 
   void _onItemTapped(int index) {
@@ -79,6 +69,14 @@ class _LandingPageState extends State<LandingPage> {
       backgroundColor: const Color(0xFF0A0A0A),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16.0),
+            child: Image.asset(
+              'assets/AppLogo.png', // The single, shared logo
+              width: 120,
+              height: 120,
+            ),
+          ),
           Expanded(
             child: IndexedStack(
               index: _selectedIndex,
