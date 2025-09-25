@@ -1,100 +1,136 @@
 import 'package:flutter/material.dart';
+import 'package:kzmusic_cross_platform/models/MusicFile.dart';
 
-// This is the main widget for your 'Library' tab.
-class LibraryScreen extends StatelessWidget {
+
+class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
 
   @override
+  State<LibraryScreen> createState() => _LibraryScreenState();
+}
+
+class _LibraryScreenState extends State<LibraryScreen> {
+  bool _isShowingLocalLibrary = false;
+  void _showLocalLibraryView() {
+    setState(() {
+      _isShowingLocalLibrary = true;
+    });
+  }
+  void _showMainLibraryView() {
+    setState(() {
+      _isShowingLocalLibrary = false;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // The Stack allows us to layer the scrollable content and the fixed playback bar.
-    return Stack(
+    if (_isShowingLocalLibrary) {
+      return _buildLocalLibraryContent();
+    } else {
+      return _buildMainLibraryContent();
+    }
+  }
+
+  Widget _buildLocalLibraryContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // The SingleChildScrollView makes the entire page scrollable vertically.
-        SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start, // Align headers to the left
-              children: [
-                InkWell(
-                  onTap: () => print('Local Library Tapped'),
-                  child: Row(
-                    children: [
-                      Image.asset(
-                        'assets/ic_library.png', // TODO: Add icon
-                        width: 100,
-                        height: 100,
-                      ),
-                      const SizedBox(width: 12),
-                      const Text(
-                        'Local Library',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Padding(
-                  padding: const EdgeInsets.only(left: 112), // Align with text above
-                  child: Text(
-                    'No Tracks',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // --- Playlist Section ---
-                const Text(
-                  'Local Playlists',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    // "Create playlist" button
-                    _CreatePlaylistButton(),
-                    const SizedBox(width: 16),
-                    // Horizontal list of playlists
-                    _PlaylistListView(),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                // --- History Section ---
-                const Text(
-                  'Playing History',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                _HistoryListView(),
-
-                // This padding ensures the last item can scroll up above the playback bar.
-                const SizedBox(height: 90),
-              ],
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: TextButton.icon(
+            onPressed: _showMainLibraryView,
+            icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 18),
+            label: const Text(
+              'Library',
+              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
             ),
+            style: TextButton.styleFrom(foregroundColor: Colors.white),
+          ),
+        ),
+        const Expanded(
+          child: Center(
+            child: Text(
+              'Local Library')
           ),
         ),
       ],
     );
   }
+  Widget _buildMainLibraryContent() {
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InkWell(
+              onTap: _showLocalLibraryView,
+              child: Row(
+                children: [
+                  Image.asset(
+                    'assets/ic_library.png',
+                    width: 100,
+                    height: 100,
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Local Library',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.only(left: 112),
+              child: Text(
+                'No Tracks',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.7),
+                  fontSize: 16,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Local Playlists',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                _CreatePlaylistButton(),
+                const SizedBox(width: 16),
+                _PlaylistListView(),
+              ],
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Playing History',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 10),
+            _HistoryListView(),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
-/// The "Create playlist" button widget.
+// The helper widgets below remain unchanged.
 class _CreatePlaylistButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -105,7 +141,7 @@ class _CreatePlaylistButton extends StatelessWidget {
           Container(
             width: 90,
             height: 90,
-            color: const Color(0xFF0A0A0A), // Match background
+            color: const Color(0xFF0A0A0A),
             child: const Icon(Icons.add, color: Colors.white, size: 40),
           ),
           const SizedBox(height: 4),
@@ -123,17 +159,15 @@ class _CreatePlaylistButton extends StatelessWidget {
   }
 }
 
-/// The horizontal list for playlists.
 class _PlaylistListView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    // Expanded makes this ListView take up the remaining horizontal space in the Row.
     return Expanded(
       child: SizedBox(
-        height: 180, // Fixed height for the horizontal list
+        height: 180,
         child: ListView.builder(
           scrollDirection: Axis.horizontal,
-          itemCount: 5, // Dummy data
+          itemCount: 5,
           itemBuilder: (context, index) {
             return Padding(
               padding: const EdgeInsets.only(right: 12.0),
@@ -161,14 +195,13 @@ class _PlaylistListView extends StatelessWidget {
   }
 }
 
-/// The vertical list for playing history.
 class _HistoryListView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: 10, // Dummy data
+      itemCount: 10,
       itemBuilder: (context, index) {
         return ListTile(
           leading: const Icon(Icons.history, color: Colors.white),
