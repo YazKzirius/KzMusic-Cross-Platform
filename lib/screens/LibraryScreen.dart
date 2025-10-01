@@ -3,15 +3,9 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:kzmusic_cross_platform/models/MusicFile.dart';
-
-// --- Platform-Specific Imports ---
-// For Mobile & Web
 import 'package:on_audio_query/on_audio_query.dart';
-// For Desktop
 import 'package:file_picker/file_picker.dart';
-// For Desktop Metadata
 import 'package:audio_metadata_reader/audio_metadata_reader.dart';
-// For Mobile Permissions
 import 'package:permission_handler/permission_handler.dart';
 
 class LibraryScreen extends StatefulWidget {
@@ -25,17 +19,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
   bool _isShowingLocalLibrary = false;
   bool _isLoading = false;
   List<MusicFile> _musicFiles = [];
-
-  // This will hold the permission status to update the UI accordingly.
   PermissionStatus? _permissionStatus;
-
-  // --- UI Navigation ---
   void _showLocalLibraryView() {
     setState(() {
       _isShowingLocalLibrary = true;
     });
-    // We don't load immediately, we wait for the user to press the button.
-    // This gives us a chance to check the initial permission status first.
     _checkInitialPermission();
   }
 
@@ -47,83 +35,83 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   /// Checks the current permission status when the screen is first shown.
   Future<void> _checkInitialPermission() async {
-    if (kIsWeb) return; // No permissions needed to check on web initially
+    if (kIsWeb || !(Platform.isAndroid || Platform.isIOS)) return;
 
-    Permission permission;
-    if (Platform.isAndroid) {
-      permission = Permission.audio;
-    } else if (Platform.isIOS) {
-      permission = Permission.mediaLibrary;
-    } else {
-      return; // No permissions to check on desktop initially
-    }
-
+    final permission = Platform.isAndroid ? Permission.audio : Permission.mediaLibrary;
     final status = await permission.status;
-    setState(() {
-      _permissionStatus = status;
-    });
+    if(mounted) setState(() => _permissionStatus = status);
   }
 
-  /// This is the master function that triggers the permission request and file scan.
+  /// Master function to trigger the permission request and file scan.
   Future<void> requestPermissionAndScan() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     List<MusicFile> loadedFiles = [];
-    if (kIsWeb || Platform.isAndroid || Platform.isIOS) {
-      loadedFiles = await _loadFromMobileOrWeb();
-    } else if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
-      loadedFiles = await _loadFromDesktop();
+    try {
+      if (kIsWeb) {
+        loadedFiles = await _loadFromWeb();
+      } else if (Platform.isAndroid || Platform.isIOS) {
+        loadedFiles = await _loadFromMobile();
+      } else if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+        loadedFiles = await _loadFromDesktop();
+      }
+    } catch (e) {
+      print("An error occurred during scanning: $e");
     }
 
-    setState(() {
-      _musicFiles = loadedFiles;
-      _isLoading = false;
-    });
+    if(mounted) {
+      setState(() {
+        _musicFiles = loadedFiles;
+        _isLoading = false;
+      });
+    }
   }
 
-  /// Handles logic for Mobile and Web, including explicit permission requests.
-  Future<List<MusicFile>> _loadFromMobileOrWeb() async {
+  /// Handles logic specifically for Mobile, with explicit permission requests.
+  Future<List<MusicFile>> _loadFromMobile() async {
     final OnAudioQuery audioQuery = OnAudioQuery();
     List<MusicFile> files = [];
 
-    if (!kIsWeb) {
-      Permission permission = Platform.isAndroid ? Permission.audio : Permission.mediaLibrary;
-      var status = await permission.request();
+    final permission = Platform.isAndroid ? Permission.audio : Permission.mediaLibrary;
+    var status = await permission.request();
 
-      setState(() {
-        _permissionStatus = status;
-      });
-
-      if (!status.isGranted) {
-        print("Permission was not granted by the user.");
-        return []; // Stop if permission is denied.
-      }
-    }
+    if(mounted) setState(() => _permissionStatus = status);
+    if (!status.isGranted) return [];
 
     List<SongModel> songs = await audioQuery.querySongs(uriType: UriType.EXTERNAL);
     for (var song in songs) {
       if (song.isMusic == true) {
         Uint8List? artwork = await audioQuery.queryArtwork(song.id, ArtworkType.AUDIO);
-        files.add(MusicFile(
-          path: song.data,
-          title: song.title,
-          artist: song.artist ?? "Unknown Artist",
-          albumArt: artwork,
-        ));
+        files.add(MusicFile(path: song.data, title: song.title, artist: song.artist ?? "Unknown Artist", albumArt: artwork));
       }
     }
     return files;
   }
 
+  /// MODIFIED: Handles the web-specific flow with proper error handling.
+  Future<List<MusicFile>> _loadFromWeb() async {
+    final OnAudioQuery audioQuery = OnAudioQuery();
+    List<MusicFile> files = [];
+    try {
+      List<SongModel> songs = await audioQuery.querySongs(uriType: UriType.EXTERNAL);
+      for (var song in songs) {
+        if (song.isMusic == true) {
+          Uint8List? artwork = await audioQuery.queryArtwork(song.id, ArtworkType.AUDIO);
+          files.add(MusicFile(path: song.data, title: song.title, artist: song.artist ?? "Unknown Artist", albumArt: artwork));
+        }
+      }
+    } catch (e) {
+      print("Error during web file picking: $e");
+    }
+    return files;
+  }
+
+
   /// Handles logic for Desktop, where the file picker IS the permission request.
   Future<List<MusicFile>> _loadFromDesktop() async {
     List<MusicFile> files = [];
     String? dirPath = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Please select your music folder');
-    if (dirPath == null) {
-      return []; // User canceled the picker, effectively denying permission.
-    }
+    if (dirPath == null) return [];
 
     final dir = Directory(dirPath);
     await for (final entity in dir.list(recursive: true)) {
@@ -160,37 +148,27 @@ class _LibraryScreenState extends State<LibraryScreen> {
     if (_isLoading) {
       bodyContent = const Center(child: CircularProgressIndicator());
     }
-    // If permission is permanently denied, the only option is to go to settings.
     else if (_permissionStatus != null && _permissionStatus!.isPermanentlyDenied) {
       bodyContent = _buildPermissionUI(
         icon: Icons.gpp_bad_outlined,
         title: 'Permission Required',
         message: 'You have permanently denied media access. To scan for music, you must enable this permission in your device settings.',
         buttonText: 'Open App Settings',
-        onPressed: openAppSettings, // This opens the phone's settings for your app.
+        onPressed: openAppSettings,
       );
     }
-    // If permission was denied but not permanently, we can ask again.
     else if (_permissionStatus != null && _permissionStatus!.isDenied) {
       bodyContent = _buildPermissionUI(
         icon: Icons.error_outline,
         title: 'Permission Needed',
         message: 'Kzmusic needs access to your media files to find and play your local music.',
         buttonText: 'Grant Permission',
-        onPressed: requestPermissionAndScan, // Re-trigger the request.
-      );
-    }
-    // If we have permission (or don't need to ask, e.g., desktop) but no files are loaded yet.
-    else if (_musicFiles.isEmpty) {
-      bodyContent = _buildPermissionUI(
-        icon: Icons.folder_open,
-        title: 'Scan Your Library',
-        message: 'Find all the local music on your device.',
-        buttonText: 'Scan for Music',
         onPressed: requestPermissionAndScan,
       );
+    }
+    else if (_musicFiles.isEmpty) {
+      bodyContent = _buildInitialScanUI();
     } else {
-      // Success case: We have files, so we show the grid.
       bodyContent = GridView.builder(
         padding: const EdgeInsets.all(8.0),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 8.0, mainAxisSpacing: 8.0, childAspectRatio: 0.7),
@@ -221,7 +199,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: Color(0xFF0A0A0A),
         elevation: 0,
         leading: IconButton(icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20), onPressed: _showMainLibraryView),
         title: const Text('Kzirius Local library', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
@@ -231,7 +209,35 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  /// A reusable helper widget for showing permission-related UI.
+  /// MODIFIED: A new helper to show the correct initial prompt based on platform.
+  Widget _buildInitialScanUI() {
+    String message = '';
+    String buttonText = '';
+    IconData icon = Icons.music_note;
+
+    if (kIsWeb) {
+      message = 'Select music files from your computer to begin.';
+      buttonText = 'Select Files';
+      icon = Icons.cloud_upload_outlined;
+    } else if (Platform.isAndroid || Platform.isIOS) {
+      message = 'Find all the local music on your device.';
+      buttonText = 'Scan for Music';
+      icon = Icons.search;
+    } else { // Desktop
+      message = 'Select a folder to scan for your local music.';
+      buttonText = 'Select Music Folder';
+      icon = Icons.folder_open;
+    }
+
+    return _buildPermissionUI(
+      icon: icon,
+      title: 'Your Local Library',
+      message: message,
+      buttonText: buttonText,
+      onPressed: requestPermissionAndScan,
+    );
+  }
+
   Widget _buildPermissionUI({required IconData icon, required String title, required String message, required String buttonText, required VoidCallback onPressed}) {
     return Center(
       child: Padding(
@@ -251,8 +257,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
       ),
     );
   }
-
-  // --- Your original main library content (unchanged) ---
   Widget _buildMainLibraryContent() {
     return SingleChildScrollView(
       child: Padding(
@@ -262,19 +266,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
           children: [
             InkWell(
               onTap: _showLocalLibraryView,
-              child: Row(
-                children: [
-                  Image.asset('assets/ic_library.png', width: 100, height: 100),
-                  const SizedBox(width: 12),
-                  const Text('Local Library', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                ],
-              ),
+              child: Row(children: [Image.asset('assets/ic_library.png', width: 100, height: 100), const SizedBox(width: 12), const Text('Local Library', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold))]),
             ),
             const SizedBox(height: 6),
-            Padding(
-              padding: const EdgeInsets.only(left: 112),
-              child: Text('${_musicFiles.length} Tracks', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 16)),
-            ),
+            Padding(padding: const EdgeInsets.only(left: 112), child: Text('${_musicFiles.length} Tracks', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 16))),
             const SizedBox(height: 24),
             const Text('Local Playlists', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
@@ -289,16 +284,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 }
-// --- Helper widgets below remain unchanged ---
-class _CreatePlaylistButton extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => InkWell(onTap: () => print('Create Playlist Tapped'), child: Column(children: [Container(width: 90, height: 90, color: const Color(0xFF0A0A0A), child: const Icon(Icons.add, color: Colors.white, size: 40)), const SizedBox(height: 4), const Text('Create playlist', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold))]));
-}
-class _PlaylistListView extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Expanded(child: SizedBox(height: 180, child: ListView.builder(scrollDirection: Axis.horizontal, itemCount: 5, itemBuilder: (context, index) => Padding(padding: const EdgeInsets.only(right: 12.0), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Container(width: 140, height: 140, color: Colors.grey[800], child: const Icon(Icons.music_note, color: Colors.white, size: 50)), const SizedBox(height: 4), Text('Playlist ${index + 1}', style: const TextStyle(color: Colors.white))])))));
-}
-class _HistoryListView extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => ListView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: 10, itemBuilder: (context, index) => ListTile(leading: const Icon(Icons.history, color: Colors.white), title: Text('History Item ${index + 1}', style: const TextStyle(color: Colors.white)), subtitle: Text('Artist Name', style: TextStyle(color: Colors.grey[400])), onTap: () {}));
-}
+
+class _CreatePlaylistButton extends StatelessWidget {@override Widget build(BuildContext context) => InkWell(onTap: () => print('Create Playlist Tapped'), child: Column(children: [Container(width: 90, height: 90, color: const Color(0xFF0A0A0A), child: const Icon(Icons.add, color: Colors.white, size: 40)), const SizedBox(height: 4), const Text('Create playlist', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold))]));}
+class _PlaylistListView extends StatelessWidget {@override Widget build(BuildContext context) => Expanded(child: SizedBox(height: 180, child: ListView.builder(scrollDirection: Axis.horizontal, itemCount: 5, itemBuilder: (context, index) => Padding(padding: const EdgeInsets.only(right: 12.0), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Container(width: 140, height: 140, color: Colors.grey[800], child: const Icon(Icons.music_note, color: Colors.white, size: 50)), const SizedBox(height: 4), Text('Playlist ${index + 1}', style: const TextStyle(color: Colors.white))])))));}
+class _HistoryListView extends StatelessWidget {@override Widget build(BuildContext context) => ListView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: 10, itemBuilder: (context, index) => ListTile(leading: const Icon(Icons.history, color: Colors.white), title: Text('History Item ${index + 1}', style: const TextStyle(color: Colors.white)), subtitle: Text('Artist Name', style: TextStyle(color: Colors.grey[400])), onTap: () {}));}
