@@ -197,7 +197,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Color(0xFF0A0A0A),
       appBar: AppBar(
         backgroundColor: Color(0xFF0A0A0A),
         elevation: 0,
