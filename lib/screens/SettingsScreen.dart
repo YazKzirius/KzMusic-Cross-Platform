@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:kzmusic_cross_platform/screens/GetStartedScreen.dart';
 import 'package:kzmusic_cross_platform/services/SpotifyAuthService.dart'; // Make sure this path is correct
+import 'package:provider/provider.dart';
+import 'package:kzmusic_cross_platform/services/AuthNotifier.dart'; // Import the notifier';
 
 // This is the main widget for your 'Settings' tab.
 class SettingsScreen extends StatelessWidget {
@@ -41,21 +43,6 @@ class SettingsScreen extends StatelessWidget {
             const Divider(color: Colors.grey),
             const SizedBox(height: 24),
 
-            // Change Password Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => print('Change Password Tapped'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFF6200EE),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                child: const Text('Change Password', style: TextStyle(fontSize: 16)),
-              ),
-            ),
-            const SizedBox(height: 12),
-
             // Connect with Spotify Button
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -93,8 +80,9 @@ class SettingsScreen extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Sign out pressed')),
-                  );
+                    const SnackBar(content: Text('Signing Out')),
+                    );
+                  Provider.of<AuthNotifier>(context, listen: false).signOut();
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Color(0xFF6200EE),

@@ -17,22 +17,14 @@ class SpotifyAuthService {
     if (Platform.isAndroid || Platform.isIOS) {
       return 'kzmusiccrossplatform://callback';
     } else {
-      // This will now cover Windows, macOS, and Linux.
-      // They will use the same web-based redirect flow.
       return 'http://localhost:9999/callback';
     }
   }
 
   static const String _scope = 'user-read-private user-read-email';
-
-  // We no longer need this instance variable as we will use SharedPreferences
-  // String _codeVerifier = '';
-
   /// Initiates the Spotify authentication flow.
   Future<void> authenticate() async {
     final codeVerifier = _generateRandomString(128);
-
-    // --- FIX 1: SAVE the code_verifier before launching the URL ---
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('spotify_code_verifier', codeVerifier);
 
@@ -60,8 +52,6 @@ class SpotifyAuthService {
     if (code == null) {
       return false;
     }
-
-    // --- FIX 2: LOAD the code_verifier from storage ---
     final prefs = await SharedPreferences.getInstance();
     final codeVerifier = prefs.getString('spotify_code_verifier');
 
@@ -90,8 +80,6 @@ class SpotifyAuthService {
         final data = json.decode(response.body);
         final accessToken = data['access_token'];
         final refreshToken = data['refresh_token'];
-
-        // This part was already correct: it logs the token and stores it.
         print('--- SPOTIFY ACCESS TOKEN ---');
         print(accessToken);
         print('----------------------------');

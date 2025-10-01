@@ -3,7 +3,7 @@ import 'package:kzmusic_cross_platform/services/SpotifyAuthService.dart';
 import 'package:kzmusic_cross_platform/screens/DashboardScreen.dart';
 import 'package:kzmusic_cross_platform/screens/SearchScreen.dart';
 import 'package:kzmusic_cross_platform/screens/LibraryScreen.dart';
-import 'package:kzmusic_cross_platform/screens/AccountSettingsScreen.dart';
+import 'package:kzmusic_cross_platform/screens/SettingsScreen.dart';
 
 // Placeholder screens for the navigation items
 class Dashboard extends StatelessWidget {

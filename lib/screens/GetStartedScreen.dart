@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:kzmusic_cross_platform/services/SpotifyAuthService.dart';
-import 'package:kzmusic_cross_platform/screens/LandingPage.dart';
+import 'package:kzmusic_cross_platform/screens/OfflineLandingPage.dart';
+import 'package:kzmusic_cross_platform/services/AuthNotifier.dart';
+import 'package:provider/provider.dart';
 
 
 class GetStartedScreen extends StatefulWidget {
@@ -18,12 +20,7 @@ class _GetStartedScreenState extends State<GetStartedScreen> {
       _isLoading = true;
     });
 
-    // This will open the browser for the user to log in.
-    // The redirect will be handled when the app comes back into focus.
     await _authService.authenticate();
-
-    // We don't need to handle success/failure here, as the redirect
-    // will trigger a full app reload on the web.
     if (mounted) {
       setState(() {
         _isLoading = false;
@@ -78,11 +75,7 @@ class _GetStartedScreenState extends State<GetStartedScreen> {
                   height: 56.0,
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : () {
-                      Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const LandingPage())
-                      );
+                      Provider.of<AuthNotifier>(context, listen: false).enterOfflineMode();
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Color(0xFF222222), // Equivalent to backgroundTint="@color/purple"
