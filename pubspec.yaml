@@ -49,7 +49,6 @@ dependencies:
   on_audio_query_android_v1_8: ^1.1.1
   file_picker: ^8.0.0+1
   audio_metadata_reader: ^1.4.2
-  audiotags: ^1.0.1
   permission_handler: ^11.3.1
 
 dev_dependencies:
