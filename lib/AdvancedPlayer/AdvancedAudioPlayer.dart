@@ -47,11 +47,7 @@ class AdvancedAudioPlayer extends ChangeNotifier {
 
   Future<void> playSong(List<MusicFile> playlist, int startIndex) async {
     print("[AUDIO DEBUG] playSong called for index $startIndex.");
-
-    // Ensure the engine is initialized before we try to use it.
     await init();
-
-    // CRUCIAL CHECK: After awaiting init, is it *actually* initialized?
     if (!_soLoud.isInitialized) {
       print("[AUDIO DEBUG] !!! CANNOT PLAY: SoLoud is still not initialized after init() call.");
       return;
@@ -73,27 +69,33 @@ class AdvancedAudioPlayer extends ChangeNotifier {
     if (_audioSource != null) await _soLoud.disposeSource(_audioSource!);
     _positionTimer?.cancel();
     _currentPosition = Duration.zero;
-    // We notify here to clear the old song's position from the UI
     notifyListeners();
 
     try {
       final musicFile = _playlist[_currentIndex];
-      print("[AUDIO DEBUG] Loading file: ${musicFile.path!}");
-      _audioSource = await SoLoud.instance.loadFile(musicFile.path);
+      print("[AUDIO DEBUG] Attempting to load file: ${musicFile.path!}");
+      _audioSource = await SoLoud.instance.loadFile(musicFile.path!)
+          .timeout(const Duration(seconds: 5), onTimeout: () {
+        // This is the correct way to handle a timeout.
+        throw TimeoutException('File loading timed out for ${musicFile.path!}');
+      });
 
       if (_audioSource == null) {
+        // This will now only catch cases where loadFile legitimately returns null.
         print("[AUDIO DEBUG] !!! loadFile returned null. The file might be corrupt or unsupported.");
+        _isPlaying = false;
+        notifyListeners();
         return;
       }
 
-      print("[AUDIO DEBUG] File loaded. Now playing...");
+      print("[AUDIO DEBUG] File loaded successfully. Now playing...");
       _soundHandle = await _soLoud.play(_audioSource!);
       _totalDuration = _soLoud.getLength(_audioSource!);
-      _isPlaying = true; // State is now playing
+      _isPlaying = true;
       print("[AUDIO DEBUG] Play command issued. Duration: $_totalDuration. IsPlaying: $_isPlaying");
 
       _startPositionTimer();
-      notifyListeners(); // IMPORTANT: Notify UI that a new song is playing
+      notifyListeners();
 
     } catch (e) {
       print("[AUDIO DEBUG] !!! ERROR in _loadAndPlay: $e");

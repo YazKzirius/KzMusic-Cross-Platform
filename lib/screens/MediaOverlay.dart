@@ -35,8 +35,11 @@ class _MediaOverlayScreenState extends State<MediaOverlayScreen> {
   @override
   void initState() {
     super.initState();
-    final audioPlayer = context.read<AdvancedAudioPlayer>();
-    audioPlayer.playSong(widget.musicFiles, widget.position);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<AdvancedAudioPlayer>().playSong(widget.musicFiles, widget.position);
+      }
+    });
 
   }
   String _formatDuration(Duration d) {
