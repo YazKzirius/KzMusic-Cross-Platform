@@ -25,6 +25,8 @@
   <key>CFBundleURLTypes</key>
   <key>NSAppleMusicUsageDescription</key>
   <string>Kzmusic needs access to your media library to find and display your local songs.</string>
+  <key>NSAppleMusicUsageDescription</key>
+  <string>KzMusic needs access to your library to find and play your local songs.</string>
   <array>
       <dict>
           <key>CFBundleTypeRole</key>

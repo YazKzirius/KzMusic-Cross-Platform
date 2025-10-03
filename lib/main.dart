@@ -7,11 +7,18 @@ import 'package:kzmusic_cross_platform/services/SpotifyAuthService.dart';
 import 'package:kzmusic_cross_platform/services/AuthNotifier.dart'; // Import the notifier
 import 'package:provider/provider.dart'; // Import provider
 import 'package:kzmusic_cross_platform/screens/OfflineLandingPage.dart';
+import 'package:kzmusic_cross_platform/AdvancedPlayer/AdvancedAudioPlayer.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final audioPlayer = AdvancedAudioPlayer();
+
   runApp(
-    ChangeNotifierProvider(
-      create: (context) => AuthNotifier(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: audioPlayer),
+        ChangeNotifierProvider(create: (context) => AuthNotifier()),
+      ],
       child: const MyApp(),
     ),
   );

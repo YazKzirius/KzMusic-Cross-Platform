@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:kzmusic_cross_platform/models/MusicFile.dart';
+import 'package:kzmusic_cross_platform/screens/MediaOverlay.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:audio_metadata_reader/audio_metadata_reader.dart';
@@ -67,37 +68,20 @@ class _LibraryScreenState extends State<LibraryScreen> {
     }
   }
 
-  /// Handles logic specifically for Mobile, with explicit permission requests.
-  Future<List<MusicFile>> _loadFromMobile() async {
-    final OnAudioQuery audioQuery = OnAudioQuery();
-    List<MusicFile> files = [];
 
-    final permission = Platform.isAndroid ? Permission.audio : Permission.mediaLibrary;
-    var status = await permission.request();
-
-    if(mounted) setState(() => _permissionStatus = status);
-    if (!status.isGranted) return [];
-
-    List<SongModel> songs = await audioQuery.querySongs(uriType: UriType.EXTERNAL);
-    for (var song in songs) {
-      if (song.isMusic == true) {
-        Uint8List? artwork = await audioQuery.queryArtwork(song.id, ArtworkType.AUDIO);
-        files.add(MusicFile(path: song.data, title: song.title, artist: song.artist ?? "Unknown Artist", albumArt: artwork));
-      }
-    }
-    return files;
-  }
-
-  /// MODIFIED: Handles the web-specific flow with proper error handling.
+  ///Handles the web-specific flow with proper error handling.
   Future<List<MusicFile>> _loadFromWeb() async {
     final OnAudioQuery audioQuery = OnAudioQuery();
     List<MusicFile> files = [];
     try {
       List<SongModel> songs = await audioQuery.querySongs(uriType: UriType.EXTERNAL);
       for (var song in songs) {
-        if (song.isMusic == true) {
+        if (song.isMusic == true &&
+            song.title.isNotEmpty &&
+            song.artist != null &&
+            song.artist!.isNotEmpty) {
           Uint8List? artwork = await audioQuery.queryArtwork(song.id, ArtworkType.AUDIO);
-          files.add(MusicFile(path: song.data, title: song.title, artist: song.artist ?? "Unknown Artist", albumArt: artwork));
+          files.add(MusicFile(path: song.data, title: song.title, artist: song.artist!, albumArt: artwork));
         }
       }
     } catch (e) {
@@ -106,7 +90,33 @@ class _LibraryScreenState extends State<LibraryScreen> {
     return files;
   }
 
+  Future<List<MusicFile>> _loadFromMobile() async {
+    final OnAudioQuery audioQuery = OnAudioQuery();
+    List<MusicFile> files = [];
 
+    // Use the correct permission for the Android version
+    final permission = Platform.isAndroid ? Permission.audio : Permission.mediaLibrary;
+    var status = await permission.request();
+
+    if(mounted) setState(() => _permissionStatus = status);
+    if (!status.isGranted) return [];
+
+    List<SongModel> songs = await audioQuery.querySongs(uriType: UriType.EXTERNAL);
+    for (var song in songs) {
+      if (song.isMusic == true &&
+          song.data.isNotEmpty &&
+          song.title.isNotEmpty &&
+          song.artist != null &&
+          song.artist!.isNotEmpty) {
+
+        Uint8List? artwork = await audioQuery.queryArtwork(song.id, ArtworkType.AUDIO);
+        files.add(MusicFile(path: song.data, title: song.title, artist: song.artist!, albumArt: artwork));
+      }
+    }
+    return files;
+  }
+
+  /// Handles logic for Desktop, where the file picker IS the permission request.
   /// Handles logic for Desktop, where the file picker IS the permission request.
   Future<List<MusicFile>> _loadFromDesktop() async {
     List<MusicFile> files = [];
@@ -114,21 +124,47 @@ class _LibraryScreenState extends State<LibraryScreen> {
     if (dirPath == null) return [];
 
     final dir = Directory(dirPath);
+    if (!await dir.exists()) {
+      print("Error: Selected directory does not exist.");
+      return [];
+    }
+
+    print("--- STARTING FOLDER SCAN: $dirPath ---");
+
+    int fileCounter = 0;
     await for (final entity in dir.list(recursive: true)) {
       if (entity is File && (entity.path.endsWith('.mp3') || entity.path.endsWith('.m4a') || entity.path.endsWith('.flac'))) {
+        fileCounter++;
+        // THIS IS THE CRUCIAL LOGGING STEP
+        print("[$fileCounter] Reading metadata for: ${entity.path}");
+
         try {
+          // The crash is happening inside this native call
           final metadata = await readMetadata(entity);
-          files.add(MusicFile(
-            path: entity.path,
-            title: metadata.title ?? "Unknown Title",
-            artist: metadata.artist ?? "Unknown Artist",
-            albumArt: metadata.pictures.isNotEmpty ? metadata.pictures.first.bytes : null,
-          ));
+
+          // If the code reaches here, the file was read successfully
+          print("[$fileCounter] Successfully read metadata.");
+
+          if (metadata.title != null &&
+              metadata.title!.isNotEmpty &&
+              metadata.artist != null &&
+              metadata.artist!.isNotEmpty) {
+            files.add(MusicFile(
+              path: entity.path,
+              title: metadata.title!,
+              artist: metadata.artist!,
+              albumArt: metadata.pictures.isNotEmpty ? metadata.pictures.first.bytes : null,
+            ));
+          }
         } catch (e) {
-          print("Error reading metadata for ${entity.path}: $e");
+          // This will only catch Dart-level errors, not the native crash,
+          // but it's good practice to keep it.
+          print("[$fileCounter] DART ERROR for ${entity.path}: $e");
         }
       }
     }
+
+    print("--- FOLDER SCAN FINISHED. Found ${files.length} valid music files. ---");
     return files;
   }
 
@@ -169,37 +205,57 @@ class _LibraryScreenState extends State<LibraryScreen> {
     else if (_musicFiles.isEmpty) {
       bodyContent = _buildInitialScanUI();
     } else {
-      bodyContent = GridView.builder(
-        padding: const EdgeInsets.all(8.0),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 8.0, mainAxisSpacing: 8.0, childAspectRatio: 0.7),
-        itemCount: _musicFiles.length,
-        itemBuilder: (context, index) {
-          final file = _musicFiles[index];
-          return GridTile(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Container(
-                    color: Colors.grey[800],
-                    width: double.infinity,
-                    child: file.albumArt != null ? Image.memory(file.albumArt!, fit: BoxFit.cover) : const Icon(Icons.music_note, color: Colors.white, size: 50),
+      bodyContent = ScrollConfiguration(
+        behavior: _NoGlowScrollBehavior(),
+        child: GridView.builder(
+          padding: const EdgeInsets.all(8.0),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 8.0, mainAxisSpacing: 8.0, childAspectRatio: 0.7),
+          itemCount: _musicFiles.length,
+          itemBuilder: (context, index) {
+            final file = _musicFiles[index];
+            return InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => MediaOverlayScreen(
+                      musicFile: file,      // The specific file that was tapped.
+                      musicFiles: _musicFiles, // The full list for the playback queue.
+                      position: index,      // The starting index in the queue.
+                    ),
                   ),
+                );
+              },
+              child: GridTile(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Container(
+                        color: Colors.grey[800],
+                        width: double.infinity,
+                        child: file.albumArt != null
+                            ? Image.memory(file.albumArt!, fit: BoxFit.cover)
+                            : const Icon(Icons.music_note, color: Colors.white, size: 50),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(file.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text(file.artist, style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text(file.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
-                Text(file.artist, style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
-              ],
-            ),
-          );
-        },
+              ),
+            );
+          },
+        ),
       );
     }
 
+    // The Scaffold part of your widget remains unchanged.
     return Scaffold(
-      backgroundColor: Color(0xFF0A0A0A),
+      backgroundColor: const Color(0xFF0A0A0A),
       appBar: AppBar(
-        backgroundColor: Color(0xFF0A0A0A),
+        backgroundColor: const Color(0xFF0A0A0A),
         elevation: 0,
         leading: IconButton(icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20), onPressed: _showMainLibraryView),
         title: const Text('Kzirius Local library', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
@@ -209,7 +265,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  /// MODIFIED: A new helper to show the correct initial prompt based on platform.
   Widget _buildInitialScanUI() {
     String message = '';
     String buttonText = '';
@@ -258,32 +313,44 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
   Widget _buildMainLibraryContent() {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            InkWell(
-              onTap: _showLocalLibraryView,
-              child: Row(children: [Image.asset('assets/ic_library.png', width: 100, height: 100), const SizedBox(width: 12), const Text('Local Library', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold))]),
-            ),
-            const SizedBox(height: 6),
-            Padding(padding: const EdgeInsets.only(left: 112), child: Text('${_musicFiles.length} Tracks', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 16))),
-            const SizedBox(height: 24),
-            const Text('Local Playlists', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            Row(children: [_CreatePlaylistButton(), const SizedBox(width: 16), _PlaylistListView()]),
-            const SizedBox(height: 24),
-            const Text('Playing History', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            _HistoryListView(),
-          ],
+    return ScrollConfiguration(
+      behavior: _NoGlowScrollBehavior(),
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              InkWell(
+                onTap: _showLocalLibraryView,
+                child: Row(children: [Image.asset('assets/ic_library.png', width: 100, height: 100), const SizedBox(width: 12), const Text('Local Library', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold))]),
+              ),
+              const SizedBox(height: 6),
+              Padding(padding: const EdgeInsets.only(left: 112), child: Text('${_musicFiles.length} Tracks', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 16))),
+              const SizedBox(height: 24),
+              const Text('Local Playlists', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              Row(children: [_CreatePlaylistButton(), const SizedBox(width: 16), _PlaylistListView()]),
+              const SizedBox(height: 24),
+              const Text('Playing History', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              _HistoryListView(),
+            ],
+          ),
         ),
       ),
     );
   }
 }
+
+class _NoGlowScrollBehavior extends ScrollBehavior {
+  @override
+  Widget buildOverscrollIndicator(
+      BuildContext context, Widget child, ScrollableDetails details) {
+    return child;
+  }
+}
+
 
 class _CreatePlaylistButton extends StatelessWidget {@override Widget build(BuildContext context) => InkWell(onTap: () => print('Create Playlist Tapped'), child: Column(children: [Container(width: 90, height: 90, color: const Color(0xFF0A0A0A), child: const Icon(Icons.add, color: Colors.white, size: 40)), const SizedBox(height: 4), const Text('Create playlist', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold))]));}
 class _PlaylistListView extends StatelessWidget {@override Widget build(BuildContext context) => Expanded(child: SizedBox(height: 180, child: ListView.builder(scrollDirection: Axis.horizontal, itemCount: 5, itemBuilder: (context, index) => Padding(padding: const EdgeInsets.only(right: 12.0), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Container(width: 140, height: 140, color: Colors.grey[800], child: const Icon(Icons.music_note, color: Colors.white, size: 50)), const SizedBox(height: 4), Text('Playlist ${index + 1}', style: const TextStyle(color: Colors.white))])))));}
